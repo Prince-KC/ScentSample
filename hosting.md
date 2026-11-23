@@ -1,7 +1,42 @@
 # 🚀 ScentSampleNepal — AWS Hosting & Deployment Guide
 
-> Complete step-by-step guide to deploy ScentSampleNepal (MERN stack) on AWS EC2 using  
+> Complete step-by-step guide to deploy ScentSampleNepal (MERN stack) on AWS EC2 using
 > CloudFormation, Nginx, PM2, and GitHub Actions CI/CD.
+
+---
+
+## Project Info
+
+| Field | Value |
+|---|---|
+| **GitHub Repo** | https://github.com/Prince-KC/ScentSample |
+| **GitHub Username** | `Prince-KC` |
+| **Repository Name** | `ScentSample` |
+| **Active EC2 IP** | `54.227.62.183` (or check GitHub Actions output) |
+| **MongoDB Atlas Cluster** | `cluster0.4i4h5r0.mongodb.net` |
+| **MongoDB DB Name** | `scentSampleNepal` |
+| **MongoDB Atlas User** | `princekca25_db_user` |
+| **Backend Port** | `8000` |
+| **AWS Region** | `us-east-1` |
+| **EC2 Stack Name** | `scentsamplenepal-stack` |
+| **EC2 Instance Type** | `t2.micro` (Free Tier) |
+
+---
+
+## ✅ Setup Checklist (Everything Configured)
+
+- [x] MongoDB Atlas free cluster created (`cluster0.4i4h5r0.mongodb.net`)
+- [x] MongoDB Atlas database user created (`princekca25_db_user`)
+- [x] Network Access set to `0.0.0.0/0` (open to all IPs)
+- [x] AWS Learner Lab credentials collected
+- [x] GitHub Secrets added (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `MONGO_URI`, `JWT_SECRET`)
+- [x] GitHub Variable added (`AWS_REGION = us-east-1`)
+- [x] `infra/ec2-instance.yaml` created with correct repo URL
+- [x] `infra/nginx.conf` created
+- [x] `backend/ecosystem.config.cjs` created
+- [x] `.github/workflows/deploy.yml` created with auto-healing deploy script
+- [x] `.gitignore` configured to keep `node_modules` out of Git
+- [x] Code pushed to `main` branch — automatic CI/CD deployment running
 
 ---
 
@@ -10,13 +45,12 @@
 1. [Architecture Overview](#1-architecture-overview)
 2. [What Was Done — Full Explanation](#2-what-was-done--full-explanation)
 3. [The 4 Infrastructure Files Created](#3-the-4-infrastructure-files-created)
-4. [One-Time Setup Steps](#4-one-time-setup-steps)
-5. [GitHub Secrets & Variables Required](#5-github-secrets--variables-required)
-6. [How Deployment Works (Step by Step)](#6-how-deployment-works-step-by-step)
-7. [How the API Routing Works in Production](#7-how-the-api-routing-works-in-production)
-8. [After Deployment — Useful Commands](#8-after-deployment--useful-commands)
-9. [Troubleshooting Common Issues](#9-troubleshooting-common-issues)
-10. [AWS Lab Expiry Recovery](#10-aws-lab-expiry-recovery)
+4. [GitHub Secrets & Variables](#4-github-secrets--variables)
+5. [How Deployment Works (Step by Step)](#5-how-deployment-works-step-by-step)
+6. [How the API Routing Works in Production](#6-how-the-api-routing-works-in-production)
+7. [After Deployment — Useful Commands](#7-after-deployment--useful-commands)
+8. [Real-World Deployment Fixes & Solutions](#8-real-world-deployment-fixes--solutions)
+9. [AWS Lab Expiry Recovery](#9-aws-lab-expiry-recovery)
 
 ---
 
@@ -29,7 +63,7 @@
                                |
               +----------------v----------------+
               |        AWS EC2 Instance          |
-              |       Ubuntu 24.04 LTS           |
+              |  Ubuntu 24.04 LTS  (t2.micro)   |
               |                                  |
               |   +---------------------------+  |
               |   |   NGINX (Port 80)         |  |
@@ -45,387 +79,268 @@
               |                    (via PM2)      |
               +--------------------+-------------+
                                    |
-                            MongoDB Atlas
-                         (Cloud DB -- 24/7)
+                      MongoDB Atlas (Cloud DB)
+                  cluster0.4i4h5r0.mongodb.net
+                       Database: scentSampleNepal
 ```
 
-**Key principles:**
+**Key components:**
 | Component | Role |
 |---|---|
-| **Nginx** | Serves React frontend files + proxies `/api/*` to Express backend |
+| **Nginx** | Serves React frontend + proxies `/api/*` to Express backend |
 | **PM2** | Keeps Express backend running 24/7, auto-restarts on crash/reboot |
-| **CloudFormation** | Creates the EC2 server automatically via code — no manual AWS console clicks |
-| **SSM Parameter Store** | Stores the SSH private key securely inside AWS (no manual key copying) |
-| **GitHub Actions** | On every `git push main`, automatically builds and deploys the new code |
-| **MongoDB Atlas** | Cloud database — lives outside EC2, persists across server reboots |
+| **CloudFormation** | Creates the EC2 server automatically via code — no manual AWS clicks |
+| **SSM Parameter Store** | Stores the SSH private key securely inside AWS |
+| **GitHub Actions** | Auto-deploys on every `git push origin main` |
+| **MongoDB Atlas** | Cloud database — lives outside EC2, persists across reboots |
 
 ---
 
 ## 2. What Was Done — Full Explanation
 
-Here is everything that was set up for this project, explained plainly:
-
-### 2.1 Project Structure Analysed
-
-The project has this layout:
+### 2.1 Project Structure
 
 ```
-ScentSampleNepal/
-├── backend/            <- Express.js API (port 8000, ES modules)
-│   ├── index.js        <- Entry point: starts server on PORT env var
-│   ├── package.json    <- "type": "module" (ES modules)
-│   ├── ecosystem.config.cjs  <- PM2 config (NEW -- created for deployment)
-│   ├── .env.example    <- Environment variable template (NEW)
-│   └── src/
-│       ├── connectToDb.js    <- Reads MONGO_URI from env
-│       └── routes/     <- /product, /user, /review, /order
-├── frontend/           <- React + Vite (builds to frontend/dist/)
-│   └── src/
-├── infra/              <- Infrastructure files (NEW -- created for deployment)
-│   ├── ec2-instance.yaml   <- AWS CloudFormation template
-│   └── nginx.conf          <- Nginx web server config
+ScentSample/                        (GitHub repo name)
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml  <- GitHub Actions CI/CD pipeline (NEW)
-└── hosting.md          <- This file
+│       └── deploy.yml              GitHub Actions CI/CD pipeline
+├── backend/
+│   ├── index.js                    Entry point — Express on port 8000
+│   ├── package.json                "type": "module" (ES modules)
+│   ├── ecosystem.config.cjs        PM2 config (CommonJS)
+│   ├── .env.example                Env variable template
+│   └── src/
+│       ├── connectToDb.js          Reads process.env.MONGO_URI
+│       └── routes/                 /product, /user, /review, /order
+├── frontend/
+│   ├── src/                        React + Vite app
+│   └── (builds to frontend/dist/)
+├── infra/
+│   ├── ec2-instance.yaml           AWS CloudFormation template
+│   └── nginx.conf                  Nginx web server config
+├── .gitignore                      Prevents node_modules & secrets in Git
+└── hosting.md                      This file
 ```
 
 ### 2.2 The `/api` Routing Strategy
 
-The biggest challenge: the Express backend routes are `/product`, `/user`, `/review`, `/order` — no `/api` prefix.  
-But in production, the frontend and backend both run behind the **same Nginx on port 80**, so we need a way to tell Nginx "this request goes to Express, not to the React app."
-
-**Solution used:** Nginx `/api/` proxy with prefix stripping via `rewrite`:
+Express routes are `/product`, `/user`, `/review`, `/order` — without an `/api` prefix.
+In production, Nginx strips `/api` before forwarding to Express:
 
 ```
-Browser sends:  GET /api/product
-Nginx rewrites: GET /product         -> forwards to Express on port 8000
-Express sees:   GET /product         -> responds normally
+Browser sends:   GET /api/product
+Nginx rewrites:  GET /product      -> Express on port 8000
+Express sees:    GET /product      -> responds OK
 ```
 
-This means **the Express code is not changed at all**. Only the frontend API calls and Nginx config needed to handle this.
-
-The frontend build in GitHub Actions sets `VITE_API_URL=/api` as an environment variable, so React sends all API requests to `/api/...` in production while keeping `http://localhost:8000` for local development.
+Express code is NOT changed. GitHub Actions sets `VITE_API_URL=/api` at build time.
 
 ### 2.3 MongoDB — Local vs Production
 
 | Environment | Connection |
 |---|---|
-| **Local dev** | `mongodb://127.0.0.1:27017/scentSampleNepal` (your PC's MongoDB) |
-| **Production** | `MONGO_URI=mongodb+srv://...@atlas...` (MongoDB Atlas cloud) |
+| **Local dev** | `mongodb://127.0.0.1:27017/scentSampleNepal` |
+| **Production** | `mongodb+srv://princekca25_db_user:...@cluster0.4i4h5r0.mongodb.net/scentSampleNepal` |
 
-The `connectToDb.js` already reads `process.env.MONGO_URI`, so no code change is needed. The GitHub Actions workflow writes the Atlas URI into a `.env` file on the server automatically.
+`connectToDb.js` reads `process.env.MONGO_URI` — no code change needed.
 
 ### 2.4 PM2 — Why `.cjs` Extension
 
-The backend `package.json` has `"type": "module"`, which makes Node.js treat all `.js` files as ES modules. PM2's config file uses `module.exports = {...}` which is **CommonJS** syntax — this would crash with a `.js` extension. So the config is named `ecosystem.config.cjs` to force CommonJS loading regardless of `"type": "module"`.
+`backend/package.json` has `"type": "module"` (ES modules). PM2 config uses `module.exports`
+(CommonJS). Using `.cjs` extension forces Node.js to treat it as CommonJS regardless.
 
 ---
 
 ## 3. The 4 Infrastructure Files Created
 
-### File 1: `infra/ec2-instance.yaml` — CloudFormation Template
+### File 1: `infra/ec2-instance.yaml`
+- Creates EC2 `t2.micro` Ubuntu 24.04 server
+- SSH key auto-saved to AWS SSM Parameter Store
+- Opens Port 80 (HTTP) and Port 22 (SSH)
+- UserData bootstrap installs Node.js 22, Nginx, Git, PM2
 
-**What it does:**
-- Creates an EC2 `t2.micro` Ubuntu 24.04 server (free tier)
-- Creates an SSH key pair and saves the private key to **AWS SSM Parameter Store** automatically
-- Opens **Port 80** (HTTP for website) and **Port 22** (SSH for GitHub Actions)
-- On first boot, automatically: installs Node.js 22, Nginx, Git, PM2, clones your repo, and configures Nginx
+### File 2: `infra/nginx.conf`
+- Serves `frontend/dist/` as the React SPA
+- Proxies `/api/*` → Express port 8000 (strips `/api` prefix with `rewrite`)
+- `/health` endpoint for GitHub Actions verification
+- Logs to `/var/log/nginx/scentsamplenepal.*.log`
 
-> **IMPORTANT:** Before using, replace `YOUR_GITHUB_USERNAME` in the `git clone` line inside `UserData` with your actual GitHub username.
+### File 3: `backend/ecosystem.config.cjs`
+- Runs `index.js` from `/var/www/app/backend/`
+- `NODE_ENV=production`, `PORT=8000`
+- Auto-restart on crash, memory limit 300MB
+- Logs to `/var/log/pm2/`
 
----
-
-### File 2: `infra/nginx.conf` — Web Server Configuration
-
-**What it does:**
-- Listens on Port 80 (public internet)
-- Serves `frontend/dist/` as the React app (with SPA fallback for React Router)
-- Proxies all requests to `/api/*` → Express backend on port 8000 (strips the `/api` prefix using `rewrite`)
-- Adds a `/health` endpoint used by GitHub Actions to verify the server is live
-- Logs access and errors to `/var/log/nginx/scentsamplenepal.*.log`
-
----
-
-### File 3: `backend/ecosystem.config.cjs` — PM2 Process Manager Config
-
-**What it does:**
-- Tells PM2 to run `index.js` from `/var/www/app/backend/`
-- Sets `NODE_ENV=production` and `PORT=8000`
-- Enables auto-restart on crash and after system reboots
-- Sets memory limit to 300MB (restarts if exceeded)
-- Writes logs to `/var/log/pm2/`
-
-> **Note:** Uses `.cjs` extension (not `.js`) because the backend is ES modules (`"type": "module"`). CommonJS config files must use `.cjs`.
-
----
-
-### File 4: `.github/workflows/deploy.yml` — GitHub Actions CI/CD Pipeline
-
-**What it does (9 steps, runs on every `git push` to `main`):**
+### File 4: `.github/workflows/deploy.yml`
+9-step pipeline that runs on every `git push origin main`:
 
 | Step | Action |
 |---|---|
-| 1 | Checkout your code |
-| 2 | Set up Node.js 22 with npm caching |
-| 3 | Build the React frontend (`npm run build`) with `VITE_API_URL=/api` |
+| 1 | Checkout code |
+| 2 | Set up Node.js 22 |
+| 3 | Build React frontend (`VITE_API_URL=/api npm run build`) |
 | 4 | Configure AWS credentials from GitHub Secrets |
-| 5 | Create the CloudFormation stack if it doesn't exist yet |
-| 6 | Fetch the EC2 public IP and SSH key from AWS SSM |
-| 7 | Wait for the EC2 server to accept SSH (up to 4 minutes) |
-| 8 | SSH into server: pull code, write `.env`, install deps, rebuild frontend, reload Nginx, restart PM2 |
-| 9 | Hit `/health` endpoint to confirm the site is live |
+| 5 | Create CloudFormation stack (EC2 server) if not exists |
+| 6 | Fetch EC2 IP + SSH key from AWS SSM |
+| 7 | Wait for SSH to be ready (up to 4 min) |
+| 8 | SSH in: wait for cloud-init, pull/clone code, write `.env`, install deps, rebuild frontend, reload Nginx, restart PM2 |
+| 9 | Curl `/health` to confirm site is live |
 
 ---
 
-### Bonus File: `backend/.env.example`
+## 4. GitHub Secrets & Variables
 
-A template showing all required environment variables. Copy it to `.env` for local dev. Never commit `.env` to Git.
+### Repository: https://github.com/Prince-KC/ScentSample → Settings → Secrets and variables → Actions
 
----
+#### Secrets ✅ (Configured)
 
-## 4. One-Time Setup Steps
-
-Follow these steps **once** before your first deployment.
-
-### Step 1 — Set Up MongoDB Atlas (Free Cloud Database)
-
-1. Go to [mongodb.com/atlas](https://www.mongodb.com/atlas) → **Create a free account**
-2. Create a **Free M0 cluster** (choose any region)
-3. Under **Database Access** → Add a user (e.g., `scentsamplenepal`) with a strong password
-4. Under **Network Access** → Add IP `0.0.0.0/0` (allow from anywhere — EC2 IP changes on reboot)
-5. Click **Connect** → **Connect your application** → Copy the connection string:
-   ```
-   mongodb+srv://scentsamplenepal:<password>@cluster0.xxxxx.mongodb.net/scentSampleNepal?retryWrites=true&w=majority
-   ```
-6. **Replace `<password>`** with your actual password — save this string, you'll need it for GitHub Secrets.
-
----
-
-### Step 2 — Collect AWS Credentials
-
-**If using AWS Learner Lab:**
-1. Open the Learner Lab → click **AWS Details**
-2. Copy:
-   - `AWS_ACCESS_KEY_ID`
-   - `AWS_SECRET_ACCESS_KEY`
-   - `AWS_SESSION_TOKEN`
-3. Note: These expire when the lab session ends — update secrets each new session
-
-**If using a real AWS account:**
-1. Go to IAM → Create a user with `AdministratorAccess` (or at minimum: EC2, CloudFormation, SSM)
-2. Create Access Keys under that user
-3. Copy `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` (no session token needed)
-
----
-
-### Step 3 — Edit the CloudFormation File
-
-Open `infra/ec2-instance.yaml` and find this line inside `UserData`:
-
-```yaml
-git clone https://github.com/YOUR_GITHUB_USERNAME/ScentSampleNepal.git /var/www/app
-```
-
-Replace `YOUR_GITHUB_USERNAME` with your actual GitHub username, e.g.:
-
-```yaml
-git clone https://github.com/john123/ScentSampleNepal.git /var/www/app
-```
-
----
-
-### Step 4 — Add GitHub Secrets & Variables
-
-Go to your GitHub repository → **Settings** → **Secrets and variables** → **Actions**
-
-#### Secrets (encrypted, never shown again):
-
-| Secret Name | Value | Where to get it |
+| Secret Name | Status | Notes |
 |---|---|---|
-| `AWS_ACCESS_KEY_ID` | `AKIA...` | AWS Learner Lab / IAM |
-| `AWS_SECRET_ACCESS_KEY` | `wJalr...` | AWS Learner Lab / IAM |
-| `AWS_SESSION_TOKEN` | `IQoJb...` | AWS Learner Lab only (omit for real account) |
-| `MONGO_URI` | `mongodb+srv://...` | MongoDB Atlas Step 1 |
-| `JWT_SECRET` | Any long random string | Make one up — e.g., `scent$nepal#2026!jwt` |
+| `AWS_ACCESS_KEY_ID` | ✅ Configured | From AWS Learner Lab → AWS Details |
+| `AWS_SECRET_ACCESS_KEY` | ✅ Configured | From AWS Learner Lab → AWS Details |
+| `AWS_SESSION_TOKEN` | ✅ Configured | From AWS Learner Lab (expires each session!) |
+| `MONGO_URI` | ✅ Configured | `mongodb+srv://princekca25_db_user:...@cluster0.4i4h5r0.mongodb.net/scentSampleNepal?retryWrites=true&w=majority` |
+| `JWT_SECRET` | ✅ Configured | Random string for signing login tokens |
 
-#### Variables (plain text, visible):
+#### Variables ✅ (Configured)
 
-| Variable Name | Value |
-|---|---|
-| `AWS_REGION` | `us-east-1` (or your chosen region) |
+| Variable Name | Value | Status |
+|---|---|---|
+| `AWS_REGION` | `us-east-1` | ✅ Configured |
 
 ---
 
-### Step 5 — Push to GitHub and Deploy
+## 5. How Deployment Works (Step by Step)
 
-```bash
-git add .
-git commit -m "Add AWS hosting infrastructure"
+```
 git push origin main
-```
-
-Go to your repo → **Actions** tab → watch the deployment pipeline run.  
-When all 9 steps show green checkmarks, your site is live!
-
----
-
-## 5. GitHub Secrets & Variables Required
-
-| Name | Type | Required | Description |
-|---|---|---|---|
-| `AWS_ACCESS_KEY_ID` | Secret | Always | AWS identity key |
-| `AWS_SECRET_ACCESS_KEY` | Secret | Always | AWS identity secret |
-| `AWS_SESSION_TOKEN` | Secret | Lab only | Temporary session (Learner Lab only) |
-| `MONGO_URI` | Secret | Always | MongoDB Atlas connection string |
-| `JWT_SECRET` | Secret | Always | Secret key for signing login tokens |
-| `AWS_REGION` | Variable | Always | AWS region (e.g., `us-east-1`) |
-
----
-
-## 6. How Deployment Works (Step by Step)
-
-```
-You: git push origin main
         |
         v
-GitHub Actions starts automatically
+GitHub Actions triggers automatically
         |
-        +- Builds React frontend (npm run build, VITE_API_URL=/api)
+        +-- Build React frontend (VITE_API_URL=/api)
         |
-        +- Authenticates with AWS using your secrets
+        +-- Authenticate with AWS (using GitHub Secrets)
         |
-        +- Checks if CloudFormation stack exists
-        |   +- If not: creates EC2 server, waits for it to boot (~3 min)
-        |   +- If yes: skips creation, uses existing server
+        +-- Check CloudFormation stack "scentsamplenepal-stack"
+        |     If missing -> create EC2 server (~3-5 min to boot)
+        |     If exists  -> skip, use existing server
         |
-        +- Fetches EC2 IP address from CloudFormation outputs
+        +-- Get EC2 public IP from CloudFormation outputs
+        +-- Get SSH private key from AWS SSM Parameter Store
         |
-        +- Fetches SSH private key from AWS SSM Parameter Store
+        +-- Wait for EC2 SSH to be ready
         |
-        +- Waits for SSH port to be open (up to 4 minutes)
+        +-- SSH into server and run:
+        |     Wait for instance cloud-init to finish
+        |     git clone / git pull
+        |     Write .env (MONGO_URI, JWT_SECRET, PORT=8000)
+        |     npm install --omit=dev  (backend)
+        |     npm install --include=dev && npm run build  (frontend)
+        |     sudo systemctl restart nginx
+        |     pm2 startOrReload ecosystem.config.cjs
         |
-        +- SSH into server and runs:
-        |   git pull origin main              <- new code
-        |   echo "MONGO_URI=..." > .env       <- secrets injected
-        |   npm ci --omit=dev                 <- backend deps
-        |   npm run build                     <- frontend rebuilt
-        |   sudo systemctl reload nginx       <- web server reloaded
-        |   pm2 startOrReload ecosystem.cjs  <- backend restarted
-        |
-        +- Curls /health endpoint -> confirms site is up
+        +-- curl http://<EC2-IP>/health -> confirm site is up
 ```
 
 ---
 
-## 7. How the API Routing Works in Production
-
-This is the most important thing to understand:
+## 6. How the API Routing Works in Production
 
 ```
 LOCAL DEV:
   React (port 5173) -> axios.get("http://localhost:8000/product")
-  Express (port 8000) -> handles /product directly
+  Express (port 8000) handles /product directly
 
 PRODUCTION:
-  Browser -> nginx (port 80)
-  
-  React app served from: /var/www/app/frontend/dist/
-  API calls go to:        GET /api/product
-  
-  Nginx sees /api/product:
-    rewrites to /product
-    proxy_pass to http://127.0.0.1:8000
-  
-  Express (port 8000, internal) -> handles /product -> responds OK
-```
+  Browser -> Nginx (port 80) -> http://<EC2-IP>
 
-> **Tip:** To make your frontend work in both environments, use an env variable:
-> ```js
-> // In any component that calls the API:
-> const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-> axios.get(`${BASE_URL}/product`);
-> ```
-> GitHub Actions sets `VITE_API_URL=/api` at build time, local dev falls back to `http://localhost:8000`.
+  Request: GET /api/product
+  Nginx rewrite: strips /api -> GET /product
+  Nginx proxy_pass: http://127.0.0.1:8000/product
+  Express responds -> Nginx returns to browser
+```
 
 ---
 
-## 8. After Deployment — Useful Commands
+## 7. After Deployment — Useful Commands
 
-SSH into your server first:
+SSH into server:
 ```bash
 ssh -i your-key.pem ubuntu@<EC2-IP>
 ```
 
-### PM2 — Backend Process Manager
+### PM2 — Backend
 
 ```bash
-pm2 status                             # Show running processes
-pm2 logs scentsamplenepal-backend      # Stream live logs
-pm2 restart scentsamplenepal-backend   # Restart backend
-pm2 stop scentsamplenepal-backend      # Stop backend
+pm2 status                              # View all running processes
+pm2 logs scentsamplenepal-backend       # Live log stream
+pm2 restart scentsamplenepal-backend    # Restart
 pm2 reload ecosystem.config.cjs        # Zero-downtime reload
 ```
 
 ### Nginx — Web Server
 
 ```bash
-sudo systemctl status nginx            # Check if Nginx is running
-sudo nginx -t                          # Test config for syntax errors
-sudo systemctl reload nginx            # Apply config changes (no downtime)
-sudo systemctl restart nginx           # Full restart
-sudo cat /var/log/nginx/scentsamplenepal.error.log  # View errors
-```
-
-### Git — Update Code Manually
-
-```bash
-cd /var/www/app
-git pull origin main                   # Pull latest code
-```
-
-### App — Get Live URL
-
-```bash
-aws cloudformation describe-stacks \
-  --stack-name scentsamplenepal-stack \
-  --query "Stacks[0].Outputs[?OutputKey=='PublicURL'].OutputValue" \
-  --output text
+sudo systemctl status nginx             # Is Nginx running?
+sudo nginx -t                           # Test config syntax
+sudo systemctl reload nginx             # Apply changes (no downtime)
+sudo cat /var/log/nginx/scentsamplenepal.error.log   # View errors
 ```
 
 ---
 
-## 9. Troubleshooting Common Issues
+## 8. Real-World Deployment Fixes & Solutions
 
-| Problem | Likely Cause | Fix |
-|---|---|---|
-| GitHub Actions fails at "Configure AWS credentials" | Learner Lab expired / wrong secrets | Update the 3 AWS secrets in GitHub Settings |
-| Site loads but API calls return 502 Bad Gateway | PM2 / backend not running | SSH in → `pm2 status` → `pm2 restart scentsamplenepal-backend` |
-| Site shows blank white page | Frontend build failed or wrong `root` in nginx.conf | Check `/var/log/nginx/scentsamplenepal.error.log` |
-| MongoDB connection error in logs | Wrong `MONGO_URI` or Atlas IP not whitelisted | Check Atlas Network Access → ensure `0.0.0.0/0` is added |
-| `/api/product` returns 404 | Nginx rewrite not applied | SSH in → `sudo nginx -t` → `sudo systemctl reload nginx` |
-| SSH timeout in deployment | EC2 just created, still booting | Wait 3-5 min and re-push |
-| `pm2: command not found` on server | PM2 not installed (UserData failed) | SSH in → `sudo npm install -g pm2` |
+Here are the specific issues diagnosed and resolved during our deployment:
+
+### 1. `EBADPLATFORM: Unsupported platform for @oxlint/binding-win32`
+- **Cause:** `package-lock.json` generated on Windows recorded Windows-only native binary dependencies. When running on GitHub's Ubuntu Linux runner with `npm ci`, npm failed.
+- **Solution:** Switched from `npm ci` to `npm install` and removed the Windows lockfiles so Linux installs pure Linux binaries.
+
+### 2. `sh: 1: vite: not found`
+- **Cause:** Vite was in `devDependencies`, which CI tools can omit in production contexts.
+- **Solution:** Moved `vite` and `@vitejs/plugin-react` to `dependencies` in `frontend/package.json` and added `--include=dev` to `npm install`.
+
+### 3. `sh: 1: vite: Permission denied`
+- **Cause:** The local `node_modules` folder was accidentally committed to Git from Windows. In Git, Windows binaries lose Linux executable flags (`+x`).
+- **Solution:** Ran `git rm -r --cached` on `node_modules`, added `.gitignore`, and added `chmod -R +x node_modules/.bin` in the workflow.
+
+### 4. `cd: /var/www/app: No such file or directory`
+- **Cause:** On a brand new EC2 instance, GitHub Actions connected via SSH before the EC2 bootstrap UserData script had finished cloning the code.
+- **Solution:** Added a wait loop for `/var/lib/cloud/instance/boot-finished` and an auto-clone fallback directly in Step 8.
 
 ---
 
-## 10. AWS Lab Expiry Recovery
+## 9. AWS Lab Expiry Recovery
 
-AWS Learner Lab sessions expire (usually after a few hours). When this happens:
+When your Learner Lab session resets (every few hours):
 
-1. **Start a new lab session** in AWS Academy
-2. **Update 3 GitHub Secrets** with the new credentials:
+1. **Start a new lab session** in AWS Academy and click "AWS Details"
+2. **Update 3 GitHub Secrets** with the new values:
    - `AWS_ACCESS_KEY_ID`
    - `AWS_SECRET_ACCESS_KEY`
    - `AWS_SESSION_TOKEN`
-3. The old EC2 instance may be **terminated** — that's fine. Push any commit to `main`:
+3. **Trigger a new deployment:**
    ```bash
-   git commit --allow-empty -m "Redeploy after lab reset"
+   git commit --allow-empty -m "Redeploy: new lab session"
    git push origin main
    ```
-4. GitHub Actions will detect the CloudFormation stack is gone, **create a new EC2 server**, and deploy everything automatically.
+4. GitHub Actions will handle everything automatically.
 
-> **Note:** MongoDB Atlas data **persists across lab resets** because it lives in the cloud, not on the EC2 server. Your seeded products, users, and orders are safe.
+> **MongoDB Atlas data is safe in the cloud** — products, users, and orders persist across all lab resets.
+
+---
+
+## MongoDB Connection Reference
+
+```
+Cluster:   cluster0.4i4h5r0.mongodb.net
+Database:  scentSampleNepal
+User:      princekca25_db_user
+Full URI:  mongodb+srv://princekca25_db_user:<password>@cluster0.4i4h5r0.mongodb.net/scentSampleNepal?retryWrites=true&w=majority
+```
 
 ---
 
