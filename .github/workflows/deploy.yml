@@ -27,6 +27,7 @@ jobs:
         working-directory: frontend
         run: |
           npm install --include=dev
+          chmod -R +x node_modules/.bin || true
           npm run build
         env:
           VITE_API_URL: /api
@@ -136,6 +137,7 @@ jobs:
             echo "=== Installing frontend dependencies & rebuilding ==="
             cd $APP_DIR/frontend
             npm install --include=dev
+            chmod -R +x node_modules/.bin || true
             VITE_API_URL=/api npm run build
 
             echo "=== Reloading Nginx ==="
