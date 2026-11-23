@@ -142,12 +142,7 @@ jobs:
             cd $APP_DIR
 
             echo "=== Writing .env file for backend ==="
-            cat > $APP_DIR/backend/.env << EOF
-NODE_ENV=production
-PORT=8000
-MONGO_URI=${{ secrets.MONGO_URI }}
-JWT_SECRET=${{ secrets.JWT_SECRET }}
-EOF
+            printf "NODE_ENV=production\nPORT=8000\nMONGO_URI=%s\nJWT_SECRET=%s\n" "${{ secrets.MONGO_URI }}" "${{ secrets.JWT_SECRET }}" > $APP_DIR/backend/.env
 
             echo "=== Installing backend dependencies ==="
             cd $APP_DIR/backend
