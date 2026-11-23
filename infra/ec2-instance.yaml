@@ -1,0 +1,99 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: ScentSampleNepal — MERN Stack Hosting Infrastructure (EC2 + SSM KeyPair + Security Group)
+
+Parameters:
+  InstanceType:
+    Type: String
+    Default: t2.micro
+    Description: EC2 instance type (t2.micro is free-tier eligible)
+
+  UbuntuAMI:
+    Type: String
+    Default: ami-0e86e20dae9224db8
+    Description: Ubuntu 24.04 LTS AMI in us-east-1 (update if using a different region)
+
+  SSHLocation:
+    Type: String
+    Default: 0.0.0.0/0
+    Description: Allow SSH from anywhere (required for GitHub Actions runners)
+
+Resources:
+
+  # SSH KeyPair — private key auto-saved to SSM Parameter Store
+  ServerKeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: !Sub "${AWS::StackName}-key"
+
+  # Security Group — opens Port 80 (HTTP) and Port 22 (SSH)
+  ServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP and SSH inbound traffic
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref SSHLocation
+
+  # Ubuntu EC2 Virtual Machine with bootstrap UserData
+  ServerInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref UbuntuAMI
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref ServerKeyPair
+      SecurityGroupIds:
+        - !GetAtt ServerSecurityGroup.GroupId
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-server"
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -e
+          exec > /var/log/userdata.log 2>&1
+
+          # 1. System update & install Node.js 22, Git, Nginx
+          apt-get update -y
+          curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+          apt-get install -y nodejs nginx git
+
+          # 2. Install PM2 globally (process manager for Node.js)
+          npm install -g pm2
+
+          # 3. Clone the ScentSampleNepal repo into web directory
+          mkdir -p /var/www/app
+          git clone https://github.com/Prince-KC/ScentSample.git /var/www/app
+
+          # 4. Set up Nginx from infra config
+          cp /var/www/app/infra/nginx.conf /etc/nginx/sites-available/scentsamplenepal
+          ln -sf /etc/nginx/sites-available/scentsamplenepal /etc/nginx/sites-enabled/scentsamplenepal
+          rm -f /etc/nginx/sites-enabled/default
+
+          nginx -t
+          systemctl enable nginx
+          systemctl restart nginx
+
+          # 5. Fix ownership so ubuntu user can run npm
+          chown -R ubuntu:ubuntu /var/www/app
+
+          # 6. Set up PM2 to restart on system reboot
+          sudo -u ubuntu pm2 startup systemd -u ubuntu --hp /home/ubuntu | tail -1 | bash
+
+Outputs:
+  PublicIP:
+    Description: Public IP address of the EC2 instance
+    Value: !GetAtt ServerInstance.PublicIp
+
+  PublicURL:
+    Description: Live ScentSampleNepal website URL
+    Value: !Sub "http://${ServerInstance.PublicIp}"
+
+  SSMKeyPath:
+    Description: SSM Parameter Store path for the SSH private key (use in GitHub Secrets)
+    Value: !Sub "/ec2/keypair/${ServerKeyPair.KeyPairId}"

@@ -12,6 +12,7 @@ import CheckoutModal from "./components/CheckoutModal";
 import QuizModal from "./components/QuizModal";
 import AuthModal from "./components/AuthModal";
 import AdminPanel from "./components/AdminPanel";
+import CollectionBar from "./components/CollectionBar";
 import Footer from "./components/Footer";
 
 function App() {
@@ -238,6 +239,16 @@ function App() {
           if (el) el.scrollIntoView({ behavior: "smooth" });
         }}
         onOpenQuiz={() => setIsQuizOpen(true)}
+      />
+
+      {/* Collection Tab Bar — directly below Hero */}
+      <CollectionBar
+        activeCategory={activeCategory}
+        setActiveCategory={setActiveCategory}
+        onScrollToCatalog={() => {
+          const el = document.getElementById("catalog-section");
+          if (el) el.scrollIntoView({ behavior: "smooth" });
+        }}
       />
 
       {/* Category Visual Cards */}

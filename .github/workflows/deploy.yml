@@ -1,0 +1,167 @@
+name: Deploy ScentSampleNepal to AWS EC2
+
+# Trigger: runs every time code is pushed to the main branch
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Step 1: Checkout source code ──────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Step 2: Set up Node.js with caching ───────────────────────────────────
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      # ── Step 3: Build the React frontend ──────────────────────────────────────
+      # Sets VITE_API_URL=/api so all axios calls go through Nginx → backend
+      - name: Install frontend dependencies & build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+        env:
+          VITE_API_URL: /api
+
+      # ── Step 4: Configure AWS credentials ─────────────────────────────────────
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      # ── Step 5: Verify or create the CloudFormation stack ─────────────────────
+      - name: Deploy CloudFormation infrastructure (create or verify)
+        run: |
+          STACK_NAME="scentsamplenepal-stack"
+          REGION="${{ vars.AWS_REGION }}"
+
+          STATUS=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --region "$REGION" \
+            --query "Stacks[0].StackStatus" \
+            --output text 2>/dev/null || echo "DOES_NOT_EXIST")
+
+          if [ "$STATUS" == "DOES_NOT_EXIST" ] || [ "$STATUS" == "DELETE_COMPLETE" ]; then
+            echo "Stack not found — creating new CloudFormation stack..."
+            aws cloudformation create-stack \
+              --stack-name "$STACK_NAME" \
+              --template-body file://infra/ec2-instance.yaml \
+              --region "$REGION"
+            aws cloudformation wait stack-create-complete \
+              --stack-name "$STACK_NAME" --region "$REGION"
+            echo "Stack created successfully."
+          else
+            echo "Stack already exists (status: $STATUS). Skipping creation."
+          fi
+
+      # ── Step 6: Fetch EC2 IP and SSH private key from AWS ─────────────────────
+      - name: Get EC2 public IP and SSH key from AWS
+        id: get_infra
+        run: |
+          STACK_NAME="scentsamplenepal-stack"
+          REGION="${{ vars.AWS_REGION }}"
+
+          EC2_IP=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" --region "$REGION" \
+            --query "Stacks[0].Outputs[?OutputKey=='PublicIP'].OutputValue" \
+            --output text)
+
+          KEY_PATH=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" --region "$REGION" \
+            --query "Stacks[0].Outputs[?OutputKey=='SSMKeyPath'].OutputValue" \
+            --output text)
+
+          SSH_KEY=$(aws ssm get-parameter \
+            --name "$KEY_PATH" \
+            --with-decryption \
+            --region "$REGION" \
+            --query "Parameter.Value" --output text)
+
+          echo "EC2_IP=$EC2_IP" >> $GITHUB_OUTPUT
+          echo "$SSH_KEY" > /tmp/ssh_key.pem
+          chmod 600 /tmp/ssh_key.pem
+          echo "SSH key saved. EC2 IP: $EC2_IP"
+
+      # ── Step 7: Wait until EC2 SSH is ready ───────────────────────────────────
+      - name: Wait for EC2 to be SSH-ready
+        run: |
+          EC2_IP=${{ steps.get_infra.outputs.EC2_IP }}
+          echo "Waiting for SSH on $EC2_IP..."
+          for i in $(seq 1 24); do
+            if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 \
+              -i /tmp/ssh_key.pem ubuntu@$EC2_IP "echo ready" 2>/dev/null; then
+              echo "SSH is ready."
+              break
+            fi
+            echo "Attempt $i/24 — retrying in 10s..."
+            sleep 10
+          done
+
+      # ── Step 8: Deploy code on the EC2 server ─────────────────────────────────
+      - name: SSH into EC2 and deploy
+        run: |
+          EC2_IP=${{ steps.get_infra.outputs.EC2_IP }}
+
+          ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key.pem ubuntu@$EC2_IP << 'ENDSSH'
+            set -e
+            APP_DIR="/var/www/app"
+
+            echo "=== Pulling latest code ==="
+            cd $APP_DIR
+            git pull origin main
+
+            echo "=== Writing .env file for backend ==="
+            cat > $APP_DIR/backend/.env << EOF
+          NODE_ENV=production
+          PORT=8000
+          MONGO_URI=${{ secrets.MONGO_URI }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          EOF
+
+            echo "=== Installing backend dependencies ==="
+            cd $APP_DIR/backend
+            npm ci --omit=dev
+
+            echo "=== Installing frontend dependencies & rebuilding ==="
+            cd $APP_DIR/frontend
+            npm ci
+            VITE_API_URL=/api npm run build
+
+            echo "=== Reloading Nginx ==="
+            sudo nginx -t && sudo systemctl reload nginx
+
+            echo "=== Creating PM2 log directory ==="
+            sudo mkdir -p /var/log/pm2
+            sudo chown ubuntu:ubuntu /var/log/pm2
+
+            echo "=== Starting / Reloading PM2 ==="
+            cd $APP_DIR/backend
+            pm2 startOrReload ecosystem.config.cjs --update-env
+            pm2 save
+
+            echo "=== Deployment Complete ==="
+            pm2 status
+          ENDSSH
+
+      # ── Step 9: Verify site is live ───────────────────────────────────────────
+      - name: Verify live site responds
+        run: |
+          EC2_IP=${{ steps.get_infra.outputs.EC2_IP }}
+          echo "Testing http://$EC2_IP/health ..."
+          sleep 5
+          curl --fail --max-time 15 http://$EC2_IP/health
+          echo ""
+          echo "✅ ScentSampleNepal is live at: http://$EC2_IP"

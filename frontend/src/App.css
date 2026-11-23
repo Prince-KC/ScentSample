@@ -239,13 +239,11 @@ nav.main-nav .active-nav::after {
 .hero-gymshark-gradient {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    to right,
-    rgba(0, 0, 0, 0.82) 0%,
-    rgba(0, 0, 0, 0.65) 36%,
-    rgba(0, 0, 0, 0.25) 65%,
-    rgba(0, 0, 0, 0.05) 100%
-  );
+  background: linear-gradient(to right,
+      rgba(0, 0, 0, 0.82) 0%,
+      rgba(0, 0, 0, 0.65) 36%,
+      rgba(0, 0, 0, 0.25) 65%,
+      rgba(0, 0, 0, 0.05) 100%);
   z-index: 2;
   pointer-events: none;
 }
@@ -310,11 +308,9 @@ nav.main-nav .active-nav::after {
   }
 
   .hero-gymshark-gradient {
-    background: linear-gradient(
-      to right,
-      rgba(0, 0, 0, 0.88) 0%,
-      rgba(0, 0, 0, 0.7) 100%
-    );
+    background: linear-gradient(to right,
+        rgba(0, 0, 0, 0.88) 0%,
+        rgba(0, 0, 0, 0.7) 100%);
   }
 }
 
@@ -416,6 +412,96 @@ nav.main-nav .active-nav::after {
 .tile-card:hover .tile-btn {
   background-color: var(--gold-accent);
   color: #fff;
+}
+
+/* ─── Collection Tab Bar (below Hero) ─────────────────────── */
+.collection-bar {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  background: #ffffff;
+  border-top: 1px solid #e0e0e0;
+  border-bottom: 1px solid #e0e0e0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.collection-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.collection-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 14px 20px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-right: 1px solid #e0e0e0;
+  position: relative;
+  transition: background 0.18s ease;
+  min-width: 160px;
+}
+
+.collection-tab:last-child {
+  border-right: none;
+}
+
+.collection-tab:hover {
+  background: #f7f7f7;
+}
+
+.collection-tab.active {
+  background: #ffffff;
+}
+
+.collection-tab.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #000000;
+}
+
+.col-tab-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.col-tab-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #111;
+}
+
+.collection-tab:not(.active) .col-tab-label {
+  color: #666;
+  font-weight: 600;
+}
+
+.col-tab-sub {
+  font-size: 10px;
+  color: #999;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .collection-tab {
+    min-width: 130px;
+    padding: 12px 14px;
+  }
+  .col-tab-label {
+    font-size: 10px;
+  }
 }
 
 /* Filters & Sorting Bar (Gymshark Inspired) */
