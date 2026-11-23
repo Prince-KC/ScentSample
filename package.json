@@ -1,0 +1,17 @@
+{
+  "name": "scent-sample-nepal",
+  "version": "1.0.0",
+  "description": "Nepal's Premier Luxury Perfume Decant Store (Middle Eastern, Designer, Niche) built with MERN stack & Gymshark aesthetic",
+  "main": "start.js",
+  "type": "module",
+  "scripts": {
+    "start": "node start.js",
+    "dev": "node start.js",
+    "run": "node start.js",
+    "backend": "cd backend && node index.js",
+    "frontend": "cd frontend && npm run dev",
+    "seed": "cd backend && node src/seedData.js",
+    "build": "cd frontend && npm run build"
+  },
+  "keywords": ["perfume", "decants", "mern", "gymshark", "scentsample", "nepal"]
+}
