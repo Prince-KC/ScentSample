@@ -118,17 +118,36 @@ jobs:
             set -e
             APP_DIR="/var/www/app"
 
-            echo "=== Pulling latest code ==="
+            echo "=== Waiting for cloud-init / UserData to finish if running ==="
+            while [ ! -f /var/lib/cloud/instance/boot-finished ]; do
+              echo "Waiting for instance initialization..."
+              sleep 5
+            done
+
+            echo "=== Ensuring Node.js, Nginx, PM2 are ready ==="
+            command -v pm2 >/dev/null 2>&1 || sudo npm install -g pm2
+            command -v nginx >/dev/null 2>&1 || (sudo apt-get update -y && sudo apt-get install -y nginx)
+
+            echo "=== Ensuring application code is present ==="
+            if [ ! -d "$APP_DIR/.git" ]; then
+              sudo rm -rf $APP_DIR
+              sudo mkdir -p $APP_DIR
+              sudo chown -R ubuntu:ubuntu $APP_DIR
+              git clone https://github.com/Prince-KC/ScentSample.git $APP_DIR
+            else
+              cd $APP_DIR
+              git pull origin main
+            fi
+
             cd $APP_DIR
-            git pull origin main
 
             echo "=== Writing .env file for backend ==="
             cat > $APP_DIR/backend/.env << EOF
-          NODE_ENV=production
-          PORT=8000
-          MONGO_URI=${{ secrets.MONGO_URI }}
-          JWT_SECRET=${{ secrets.JWT_SECRET }}
-          EOF
+NODE_ENV=production
+PORT=8000
+MONGO_URI=${{ secrets.MONGO_URI }}
+JWT_SECRET=${{ secrets.JWT_SECRET }}
+EOF
 
             echo "=== Installing backend dependencies ==="
             cd $APP_DIR/backend
@@ -140,17 +159,23 @@ jobs:
             chmod -R +x node_modules/.bin || true
             VITE_API_URL=/api npm run build
 
-            echo "=== Reloading Nginx ==="
-            sudo nginx -t && sudo systemctl reload nginx
+            echo "=== Configuring Nginx ==="
+            sudo cp -f $APP_DIR/infra/nginx.conf /etc/nginx/sites-available/scentsamplenepal
+            sudo ln -sf /etc/nginx/sites-available/scentsamplenepal /etc/nginx/sites-enabled/scentsamplenepal
+            sudo rm -f /etc/nginx/sites-enabled/default
+            sudo nginx -t
+            sudo systemctl enable nginx
+            sudo systemctl restart nginx
 
             echo "=== Creating PM2 log directory ==="
             sudo mkdir -p /var/log/pm2
-            sudo chown ubuntu:ubuntu /var/log/pm2
+            sudo chown -R ubuntu:ubuntu /var/log/pm2
 
             echo "=== Starting / Reloading PM2 ==="
             cd $APP_DIR/backend
             pm2 startOrReload ecosystem.config.cjs --update-env
             pm2 save
+            pm2 startup systemd -u ubuntu --hp /home/ubuntu 2>/dev/null || true
 
             echo "=== Deployment Complete ==="
             pm2 status
