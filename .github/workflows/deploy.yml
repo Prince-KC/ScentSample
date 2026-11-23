@@ -1,187 +1,176 @@
-name: Deploy ScentSampleNepal to AWS EC2
+name: Deploy ScentSampleNepal (CloudFormation + SSH)
 
-# Trigger: runs every time code is pushed to the main branch
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+  workflow_dispatch:   # Enables the manual "Run workflow" button in GitHub Actions UI
+
+env:
+  AWS_REGION: us-east-1
+  STACK_NAME: scentsamplenepal-stack
 
 jobs:
-  deploy:
-    name: Build & Deploy
+  # -------------------------------------------------------------
+  # JOB 1: BUILD FRONTEND (Runs on GitHub's 7GB runner, NOT EC2)
+  # -------------------------------------------------------------
+  build:
+    name: Build Frontend
     runs-on: ubuntu-latest
-
     steps:
-      # ── Step 1: Checkout source code ──────────────────────────────────────────
-      - name: Checkout repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      # ── Step 2: Set up Node.js with caching ───────────────────────────────────
-      - name: Set up Node.js 22
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: 22
 
-      # ── Step 3: Build the React frontend ──────────────────────────────────────
-      # Sets VITE_API_URL=/api so all axios calls go through Nginx → backend
-      - name: Install frontend dependencies & build
-        working-directory: frontend
-        run: |
-          npm install --include=dev
-          chmod -R +x node_modules/.bin || true
-          npm run build
+      - name: Install & Compile React
         env:
           VITE_API_URL: /api
+        run: |
+          cd frontend
+          npm install
+          npm run build
 
-      # ── Step 4: Configure AWS credentials ─────────────────────────────────────
-      - name: Configure AWS credentials
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+
+  # -------------------------------------------------------------
+  # JOB 2: DEPLOY TO AWS EC2
+  # -------------------------------------------------------------
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download Frontend Build
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: ${{ vars.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      # ── Step 5: Verify or create the CloudFormation stack ─────────────────────
-      - name: Deploy CloudFormation infrastructure (create or verify)
+      - name: Deploy CloudFormation Stack
         run: |
-          STACK_NAME="scentsamplenepal-stack"
-          REGION="${{ vars.AWS_REGION }}"
+          aws cloudformation deploy \
+            --stack-name ${{ env.STACK_NAME }} \
+            --template-file infra/ec2-instance.yaml \
+            --parameter-overrides InstanceType=t2.micro \
+            --no-fail-on-empty-changeset \
+            --region ${{ env.AWS_REGION }}
 
-          STATUS=$(aws cloudformation describe-stacks \
-            --stack-name "$STACK_NAME" \
-            --region "$REGION" \
-            --query "Stacks[0].StackStatus" \
-            --output text 2>/dev/null || echo "DOES_NOT_EXIST")
-
-          if [ "$STATUS" == "DOES_NOT_EXIST" ] || [ "$STATUS" == "DELETE_COMPLETE" ]; then
-            echo "Stack not found — creating new CloudFormation stack..."
-            aws cloudformation create-stack \
-              --stack-name "$STACK_NAME" \
-              --template-body file://infra/ec2-instance.yaml \
-              --region "$REGION"
-            aws cloudformation wait stack-create-complete \
-              --stack-name "$STACK_NAME" --region "$REGION"
-            echo "Stack created successfully."
-          else
-            echo "Stack already exists (status: $STATUS). Skipping creation."
-          fi
-
-      # ── Step 6: Fetch EC2 IP and SSH private key from AWS ─────────────────────
-      - name: Get EC2 public IP and SSH key from AWS
-        id: get_infra
+      - name: Get EC2 Public IP
+        id: get-ip
         run: |
-          STACK_NAME="scentsamplenepal-stack"
-          REGION="${{ vars.AWS_REGION }}"
-
-          EC2_IP=$(aws cloudformation describe-stacks \
-            --stack-name "$STACK_NAME" --region "$REGION" \
+          IP=$(aws cloudformation describe-stacks \
+            --stack-name ${{ env.STACK_NAME }} \
+            --region ${{ env.AWS_REGION }} \
             --query "Stacks[0].Outputs[?OutputKey=='PublicIP'].OutputValue" \
             --output text)
+          echo "EC2_IP=$IP" >> $GITHUB_OUTPUT
+          echo "Server IP: $IP"
 
-          KEY_PATH=$(aws cloudformation describe-stacks \
-            --stack-name "$STACK_NAME" --region "$REGION" \
+      - name: Get SSH Key from SSM Parameter Store
+        id: get-key
+        run: |
+          SSM_PATH=$(aws cloudformation describe-stacks \
+            --stack-name ${{ env.STACK_NAME }} \
+            --region ${{ env.AWS_REGION }} \
             --query "Stacks[0].Outputs[?OutputKey=='SSMKeyPath'].OutputValue" \
             --output text)
-
-          SSH_KEY=$(aws ssm get-parameter \
-            --name "$KEY_PATH" \
+          aws ssm get-parameter \
+            --name "$SSM_PATH" \
             --with-decryption \
-            --region "$REGION" \
-            --query "Parameter.Value" --output text)
+            --region ${{ env.AWS_REGION }} \
+            --query "Parameter.Value" \
+            --output text > /tmp/scent-key.pem
+          chmod 600 /tmp/scent-key.pem
 
-          echo "EC2_IP=$EC2_IP" >> $GITHUB_OUTPUT
-          echo "$SSH_KEY" > /tmp/ssh_key.pem
-          chmod 600 /tmp/ssh_key.pem
-          echo "SSH key saved. EC2 IP: $EC2_IP"
-
-      # ── Step 7: Wait until EC2 SSH is ready ───────────────────────────────────
-      - name: Wait for EC2 to be SSH-ready
+      - name: Wait for SSH Availability
         run: |
-          EC2_IP=${{ steps.get_infra.outputs.EC2_IP }}
-          echo "Waiting for SSH on $EC2_IP..."
-          for i in $(seq 1 24); do
-            if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 \
-              -i /tmp/ssh_key.pem ubuntu@$EC2_IP "echo ready" 2>/dev/null; then
-              echo "SSH is ready."
-              break
+          IP=${{ steps.get-ip.outputs.EC2_IP }}
+          for i in $(seq 1 36); do
+            if nc -zw5 "$IP" 22 2>/dev/null; then
+              echo "SSH port 22 is open!"
+              exit 0
             fi
-            echo "Attempt $i/24 — retrying in 10s..."
+            echo "Waiting for SSH on $IP... ($i/36)"
             sleep 10
           done
+          exit 1
 
-      # ── Step 8: Deploy code on the EC2 server ─────────────────────────────────
-      - name: SSH into EC2 and deploy
-        run: |
-          EC2_IP=${{ steps.get_infra.outputs.EC2_IP }}
+      - name: Deploy Application via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          EC2_IP: ${{ steps.get-ip.outputs.EC2_IP }}
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        with:
+          host: ${{ steps.get-ip.outputs.EC2_IP }}
+          username: ubuntu
+          key_path: /tmp/scent-key.pem
+          script_stop: true
+          envs: EC2_IP,MONGO_URI,JWT_SECRET
+          script: |
+            echo ">>> [1/5] Waiting for cloud-init bootstrap..."
+            sudo cloud-init status --wait || true
 
-          ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key.pem ubuntu@$EC2_IP << 'ENDSSH'
-            set -e
-            APP_DIR="/var/www/app"
-
-            echo "=== Waiting for cloud-init / UserData to finish if running ==="
-            while [ ! -f /var/lib/cloud/instance/boot-finished ]; do
-              echo "Waiting for instance initialization..."
-              sleep 5
-            done
-
-            echo "=== Ensuring Node.js, Nginx, PM2 are ready ==="
-            command -v pm2 >/dev/null 2>&1 || sudo npm install -g pm2
-            command -v nginx >/dev/null 2>&1 || (sudo apt-get update -y && sudo apt-get install -y nginx)
-
-            echo "=== Ensuring application code is present ==="
-            if [ ! -d "$APP_DIR/.git" ]; then
-              sudo rm -rf $APP_DIR
-              sudo mkdir -p $APP_DIR
-              sudo chown -R ubuntu:ubuntu $APP_DIR
-              git clone https://github.com/Prince-KC/ScentSample.git $APP_DIR
-            else
-              cd $APP_DIR
-              git pull origin main
+            echo ">>> [2/5] Pulling latest repository code..."
+            if [ ! -d /var/www/app/.git ]; then
+              sudo mkdir -p /var/www/app
+              sudo chown -R ubuntu:ubuntu /var/www/app
+              git clone https://github.com/Prince-KC/ScentSample.git /var/www/app
             fi
+            cd /var/www/app
+            git fetch origin main
+            git reset --hard origin/main
 
-            cd $APP_DIR
-
-            echo "=== Writing .env file for backend ==="
-            printf "NODE_ENV=production\nPORT=8000\nMONGO_URI=%s\nJWT_SECRET=%s\n" "${{ secrets.MONGO_URI }}" "${{ secrets.JWT_SECRET }}" > $APP_DIR/backend/.env
-
-            echo "=== Installing backend dependencies ==="
-            cd $APP_DIR/backend
+            echo ">>> [3/5] Installing backend dependencies..."
+            cd /var/www/app/backend
             npm install --omit=dev
 
-            echo "=== Installing frontend dependencies & rebuilding ==="
-            cd $APP_DIR/frontend
-            npm install --include=dev
-            chmod -R +x node_modules/.bin || true
-            VITE_API_URL=/api npm run build
+            echo ">>> [4/5] Injecting production .env file..."
+            printf "%s\n" \
+              "PORT=8000" \
+              "NODE_ENV=production" \
+              "CLIENT_URL=http://$EC2_IP" \
+              "MONGO_URI=$MONGO_URI" \
+              "JWT_SECRET=$JWT_SECRET" \
+              > /var/www/app/backend/.env
 
-            echo "=== Configuring Nginx ==="
-            sudo cp -f $APP_DIR/infra/nginx.conf /etc/nginx/sites-available/scentsamplenepal
+            echo ">>> [5/5] Building frontend and reloading PM2/Nginx..."
+            cd /var/www/app/frontend
+            npm install
+            npm run build
+
+            cd /var/www/app/backend
+            pm2 delete all 2>/dev/null || true
+            pm2 start ecosystem.config.cjs --update-env
+            pm2 save
+            sudo cp /var/www/app/infra/nginx.conf /etc/nginx/sites-available/scentsamplenepal
             sudo ln -sf /etc/nginx/sites-available/scentsamplenepal /etc/nginx/sites-enabled/scentsamplenepal
             sudo rm -f /etc/nginx/sites-enabled/default
-            sudo nginx -t
-            sudo systemctl enable nginx
-            sudo systemctl restart nginx
+            sudo nginx -t && sudo systemctl reload nginx
 
-            echo "=== Creating PM2 log directory ==="
-            sudo mkdir -p /var/log/pm2
-            sudo chown -R ubuntu:ubuntu /var/log/pm2
+      - name: Print Live URL
+        run: echo "🎉 Live site at http://${{ steps.get-ip.outputs.EC2_IP }}"
 
-            echo "=== Starting / Reloading PM2 ==="
-            cd $APP_DIR/backend
-            pm2 startOrReload ecosystem.config.cjs --update-env
-            pm2 save
-            pm2 startup systemd -u ubuntu --hp /home/ubuntu 2>/dev/null || true
-
-            echo "=== Deployment Complete ==="
-            pm2 status
-          ENDSSH
-
-      # ── Step 9: Verify site is live ───────────────────────────────────────────
-      - name: Verify live site responds
-        run: |
-          EC2_IP=${{ steps.get_infra.outputs.EC2_IP }}
-          echo "Testing http://$EC2_IP/health ..."
-          sleep 5
-          curl --fail --max-time 15 http://$EC2_IP/health
-          echo ""
-          echo "✅ ScentSampleNepal is live at: http://$EC2_IP"
+      - name: Cleanup Temporary Key
+        if: always()
+        run: rm -f /tmp/scent-key.pem
