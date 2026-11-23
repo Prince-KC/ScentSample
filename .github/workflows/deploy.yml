@@ -26,7 +26,7 @@ jobs:
       - name: Install frontend dependencies & build
         working-directory: frontend
         run: |
-          npm ci
+          npm install
           npm run build
         env:
           VITE_API_URL: /api
@@ -131,11 +131,11 @@ jobs:
 
             echo "=== Installing backend dependencies ==="
             cd $APP_DIR/backend
-            npm ci --omit=dev
+            npm install --omit=dev
 
             echo "=== Installing frontend dependencies & rebuilding ==="
             cd $APP_DIR/frontend
-            npm ci
+            npm install
             VITE_API_URL=/api npm run build
 
             echo "=== Reloading Nginx ==="
