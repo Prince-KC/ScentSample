@@ -179,10 +179,15 @@ jobs:
             npm run build
 
             cd /var/www/app/backend
+            sudo mkdir -p /var/log/pm2
+            sudo chown -R ubuntu:ubuntu /var/log/pm2
+
             pm2 delete all 2>/dev/null || true
             pm2 start ecosystem.config.cjs --update-env
             pm2 save
-            sudo cp /var/www/app/infra/nginx.conf /etc/nginx/sites-available/scentsamplenepal
+            pm2 startup systemd -u ubuntu --hp /home/ubuntu 2>/dev/null || true
+
+            sudo cp -f /var/www/app/infra/nginx.conf /etc/nginx/sites-available/scentsamplenepal
             sudo ln -sf /etc/nginx/sites-available/scentsamplenepal /etc/nginx/sites-enabled/scentsamplenepal
             sudo rm -f /etc/nginx/sites-enabled/default
             sudo nginx -t && sudo systemctl reload nginx

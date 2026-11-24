@@ -72,8 +72,10 @@ Resources:
           curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
           apt-get install -y nodejs nginx git
 
-          # 2. Install PM2 globally (process manager for Node.js)
+          # 3. Install PM2 globally and create log directory
           npm install -g pm2
+          mkdir -p /var/log/pm2
+          chown -R ubuntu:ubuntu /var/log/pm2
 
           # 3. Clone the ScentSampleNepal repo into web directory
           mkdir -p /var/www/app
