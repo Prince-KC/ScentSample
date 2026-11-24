@@ -105,14 +105,22 @@ jobs:
       - name: Wait for SSH Availability
         run: |
           IP=${{ steps.get-ip.outputs.EC2_IP }}
-          for i in $(seq 1 36); do
-            if nc -zw5 "$IP" 22 2>/dev/null; then
-              echo "SSH port 22 is open!"
+          echo "Waiting for SSH to be fully ready and authenticated on $IP..."
+          for i in $(seq 1 30); do
+            if ssh -o StrictHostKeyChecking=no \
+                   -o UserKnownHostsFile=/dev/null \
+                   -o ConnectTimeout=5 \
+                   -o BatchMode=yes \
+                   -i /tmp/scent-key.pem \
+                   ubuntu@"$IP" "echo 'SSH is ready'" 2>/dev/null; then
+              echo "SSH handshake and authentication succeeded!"
+              sleep 5
               exit 0
             fi
-            echo "Waiting for SSH on $IP... ($i/36)"
+            echo "Waiting for SSH authentication on $IP... ($i/30)"
             sleep 10
           done
+          echo "Timed out waiting for SSH."
           exit 1
 
       - name: Deploy Application via SSH
@@ -125,9 +133,20 @@ jobs:
           host: ${{ steps.get-ip.outputs.EC2_IP }}
           username: ubuntu
           key_path: /tmp/scent-key.pem
+          timeout: 60s
+          command_timeout: 15m
           script_stop: true
           envs: EC2_IP,MONGO_URI,JWT_SECRET
           script: |
+            echo ">>> [0/5] Ensuring 2GB swap space is enabled..."
+            if [ ! -f /swapfile ]; then
+              sudo fallocate -l 2G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+              sudo chmod 600 /swapfile
+              sudo mkswap /swapfile
+              sudo swapon /swapfile || true
+              echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+            fi
+
             echo ">>> [1/5] Waiting for cloud-init bootstrap..."
             sudo cloud-init status --wait || true
 

@@ -58,7 +58,16 @@ Resources:
           set -e
           exec > /var/log/userdata.log 2>&1
 
-          # 1. System update & install Node.js 22, Git, Nginx
+          # 1. Enable 2GB swap space (prevents out-of-memory errors on t2.micro)
+          if [ ! -f /swapfile ]; then
+            fallocate -l 2G /swapfile
+            chmod 600 /swapfile
+            mkswap /swapfile
+            swapon /swapfile
+            echo '/swapfile none swap sw 0 0' >> /etc/fstab
+          fi
+
+          # 2. System update & install Node.js 22, Git, Nginx
           apt-get update -y
           curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
           apt-get install -y nodejs nginx git
