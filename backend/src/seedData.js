@@ -47,7 +47,7 @@ const perfumes = [
     inStock: true
   },
   {
-    name: "9 PM Pour Homme",
+    name: "9 PM Rebel",
     brand: "Afnan",
     category: "Middle Eastern",
     scentFamily: "Sweet Oriental Vanilla",
@@ -60,18 +60,18 @@ const perfumes = [
     samplePrices: { twoMl: 300, fiveMl: 650, tenMl: 1200 },
     price: 650,
     quantity: 80,
-    image: "https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&w=800&q=80",
+    image: "/images/middle-eastern/AFNAN_9PM_REBEL.jpg",
     rating: 4.8,
     reviewsCount: 42,
     badge: "Trending",
     inStock: true
   },
   {
-    name: "Hawas for Him",
+    name: "Hawas Ice for Him",
     brand: "Rasasi",
     category: "Middle Eastern",
     scentFamily: "Fresh Aquatic Amber",
-    description: "Dubai's most famous fresh beast-mode fragrance. Combines Italian citrus, crisp apple, aquatic marine chords with rich ambergris and driftwood that lasts through hot summer days.",
+    description: "Dubai's most famous fresh beast-mode fragrance in its icy flanker edition. Combines Italian citrus, crisp apple, aquatic marine chords with rich ambergris and driftwood that lasts through hot summer days.",
     notes: {
       top: ["Italian Bergamot", "Apple", "Cinnamon", "Lemon"],
       middle: ["Watery Notes", "Plum", "Orange Blossom", "Cardamom"],
@@ -80,7 +80,7 @@ const perfumes = [
     samplePrices: { twoMl: 400, fiveMl: 850, tenMl: 1550 },
     price: 850,
     quantity: 50,
-    image: "https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&w=800&q=80",
+    image: "/images/middle-eastern/Rasasi_Hawas_Ice.jpg",
     rating: 4.9,
     reviewsCount: 29,
     badge: "Summer Hit",
@@ -100,7 +100,7 @@ const perfumes = [
     samplePrices: { twoMl: 350, fiveMl: 750, tenMl: 1390 },
     price: 750,
     quantity: 90,
-    image: "https://images.unsplash.com/photo-1616949755610-8c9bbc08f138?auto=format&fit=crop&w=800&q=80",
+    image: "/images/middle-eastern/club_de_nuit_intense_man.jpg",
     rating: 4.7,
     reviewsCount: 56,
     badge: "Classic",
