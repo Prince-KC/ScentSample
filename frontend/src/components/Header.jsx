@@ -78,9 +78,8 @@ const Header = ({
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <button
                     className="icon-btn"
-                    title={user.name}
-                    onClick={openAdmin}
-                    style={{ fontSize: "13px", fontWeight: "700" }}
+                    title={user.role === "admin" ? "Admin Dashboard" : `${user.name} — My Account`}
+                    onClick={user.role === "admin" ? openAdmin : openAuth}                    style={{ fontSize: "13px", fontWeight: "700" }}
                   >
                     <i className="fa-solid fa-user-check" style={{ color: "var(--gold-accent)" }}></i>
                   </button>

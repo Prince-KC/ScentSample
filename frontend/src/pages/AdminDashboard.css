@@ -1,0 +1,461 @@
+/* AdminDashboard.css */
+.admin-page {
+  display: flex;
+  min-height: 100vh;
+  background: #0a0a0a;
+  color: #fff;
+  font-family: inherit;
+}
+
+/* Toast */
+.admin-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 12px 20px;
+  border-radius: 10px;
+  z-index: 999;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.2s ease;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Sidebar */
+.admin-sidebar {
+  width: 220px;
+  min-height: 100vh;
+  background: #0d0d0d;
+  border-right: 1px solid #1a1a1a;
+  display: flex;
+  flex-direction: column;
+  padding: 32px 16px;
+  gap: 20px;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+}
+
+.admin-logo {
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: #fff;
+  cursor: pointer;
+  text-transform: uppercase;
+  padding: 0 8px;
+}
+
+.admin-logo span {
+  color: #c8a96e;
+}
+
+.admin-badge {
+  background: rgba(200, 169, 110, 0.12);
+  border: 1px solid rgba(200, 169, 110, 0.3);
+  color: #c8a96e;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 5px 10px;
+  border-radius: 20px;
+  text-align: center;
+  width: fit-content;
+}
+
+.admin-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.admin-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #555;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+  letter-spacing: 0.03em;
+  width: 100%;
+}
+
+.admin-nav-item i {
+  width: 16px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.admin-nav-item:hover {
+  background: #1a1a1a;
+  color: #fff;
+}
+
+.admin-nav-item.active {
+  background: #1e1e1e;
+  color: #fff;
+}
+
+.admin-nav-item.logout {
+  color: #e05252;
+}
+
+.admin-nav-item.logout:hover {
+  background: rgba(224, 82, 82, 0.08);
+  color: #e05252;
+}
+
+.admin-sidebar-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-top: 1px solid #1a1a1a;
+  padding-top: 16px;
+}
+
+/* Main content */
+.admin-main {
+  flex: 1;
+  padding: 48px 48px;
+  overflow-y: auto;
+}
+
+.admin-section {
+  max-width: 1100px;
+}
+
+.admin-title {
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 0 0 32px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-count {
+  font-size: 14px;
+  font-weight: 600;
+  background: #1e1e1e;
+  color: #888;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.admin-section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.admin-section-header-row .admin-title {
+  margin-bottom: 0;
+}
+
+.admin-section-subheader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.admin-section-subheader h2 {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #888;
+  margin: 0;
+}
+
+.admin-link-btn {
+  background: none;
+  border: none;
+  color: #c8a96e;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+}
+
+.admin-link-btn:hover { color: #d4b87a; }
+
+/* Stats grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.stat-card {
+  background: #111;
+  border: 1px solid #1e1e1e;
+  border-radius: 12px;
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stat-icon {
+  font-size: 18px;
+  color: #333;
+}
+
+.stat-value {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #555;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Filter pills */
+.filter-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter-pill {
+  padding: 7px 16px;
+  border-radius: 20px;
+  border: 1px solid #2a2a2a;
+  background: transparent;
+  color: #666;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  letter-spacing: 0.04em;
+}
+
+.filter-pill:hover {
+  border-color: #444;
+  color: #fff;
+}
+
+.filter-pill.active {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+}
+
+/* Table */
+.admin-table-wrapper {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid #1a1a1a;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.admin-table thead tr {
+  background: #0d0d0d;
+  border-bottom: 1px solid #1a1a1a;
+}
+
+.admin-table th {
+  padding: 14px 20px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #444;
+  white-space: nowrap;
+}
+
+.admin-table td {
+  padding: 14px 20px;
+  border-bottom: 1px solid #111;
+  vertical-align: middle;
+  color: #ccc;
+}
+
+.admin-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-table tbody tr {
+  background: #0a0a0a;
+  transition: background 0.1s;
+}
+
+.admin-table tbody tr:hover {
+  background: #0f0f0f;
+}
+
+.order-id-cell {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #fff;
+  font-family: monospace;
+}
+
+/* Status select */
+.status-select {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 10px;
+  cursor: pointer;
+  outline: none;
+  font-family: inherit;
+  letter-spacing: 0.03em;
+}
+
+.status-select[data-status="Processing"] { color: #6fa3ef; }
+.status-select[data-status="Dispatched"] { color: #c8a96e; }
+.status-select[data-status="Delivered"] { color: #6fe090; }
+
+/* Item chips */
+.items-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.item-chip {
+  font-size: 11px;
+  color: #888;
+  background: #1a1a1a;
+  border-radius: 20px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
+/* Category pill */
+.category-pill {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: #1a1a1a;
+  color: #888;
+  border: 1px solid #2a2a2a;
+}
+
+/* Product thumb */
+.product-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.product-thumb {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #1a1a1a;
+}
+
+/* User avatar */
+.user-avatar-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #c8a96e;
+  color: #000;
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Role badge */
+.role-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.role-badge.admin {
+  background: rgba(200, 169, 110, 0.12);
+  color: #c8a96e;
+  border: 1px solid rgba(200, 169, 110, 0.3);
+}
+
+.role-badge.customer {
+  background: #1a1a1a;
+  color: #666;
+  border: 1px solid #2a2a2a;
+}
+
+/* Table action buttons */
+.table-action-btn {
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: none;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: #1a1a1a;
+  color: #666;
+}
+
+.table-action-btn.danger { color: #e05252; }
+.table-action-btn.danger:hover { background: rgba(224, 82, 82, 0.1); }
+
+/* Loading / empty */
+.admin-loading,
+.admin-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 80px 20px;
+  color: #333;
+  text-align: center;
+  font-size: 13px;
+}
+
+.admin-loading i,
+.admin-empty i {
+  font-size: 32px;
+}
