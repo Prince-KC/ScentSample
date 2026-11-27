@@ -345,73 +345,83 @@ nav.main-nav .active-nav::after {
 
 .tile-card {
   position: relative;
-  height: 380px;
-  border-radius: 8px;
+  height: 400px;
+  border-radius: 10px;
   overflow: hidden;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  background-color: #0b0e14;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  transition: transform 0.4s ease, box-shadow 0.4s ease;
+}
+
+.tile-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
 }
 
 .tile-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .tile-card:hover .tile-img {
-  transform: scale(1.06);
+  transform: scale(1.05);
 }
 
 .tile-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.2) 60%, transparent 100%);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.35) 45%, transparent 75%);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding: 30px;
+  padding: 28px 26px;
   color: #fff;
 }
 
 .tile-tag {
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.16em;
   color: var(--gold-accent);
   text-transform: uppercase;
   margin-bottom: 6px;
 }
 
 .tile-title {
-  font-size: 24px;
-  font-weight: 800;
+  font-size: 26px;
+  font-weight: 900;
   text-transform: uppercase;
-  margin-bottom: 8px;
+  letter-spacing: 0.02em;
+  margin-bottom: 12px;
 }
 
-.tile-desc {
-  font-size: 13px;
-  color: #d2d2d2;
-  margin-bottom: 16px;
-  line-height: 1.4;
-}
-
-.tile-btn {
-  align-self: flex-start;
-  background-color: #ffffff;
-  color: #000000;
-  padding: 8px 18px;
+.tile-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 12px;
   font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  border-radius: 20px;
-  letter-spacing: 0.04em;
+  color: #ffffff;
+  transition: gap 0.25s ease, color 0.25s ease;
 }
 
-.tile-card:hover .tile-btn {
-  background-color: var(--gold-accent);
-  color: #fff;
+.tile-action i {
+  font-size: 11px;
+  transition: transform 0.25s ease;
+}
+
+.tile-card:hover .tile-action {
+  color: var(--gold-accent);
+  gap: 12px;
+}
+
+.tile-card:hover .tile-action i {
+  transform: translateX(3px);
 }
 
 /* ─── Collection Tab Bar (below Hero) ─────────────────────── */

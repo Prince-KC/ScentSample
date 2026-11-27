@@ -4,23 +4,17 @@ const CategoryHero = ({ onSelectCategory }) => {
   const categories = [
     {
       title: "Middle Eastern",
-      tag: "Opulent & Beast-Mode",
-      desc: "Rich Arabic coffee, sweet dates, warm cinnamon, and intoxicating smoky woods. Exceptional longevity and sillage.",
-      brands: "Lattafa • Afnan • Rasasi • Armaf",
+      tag: "Exotic & Beast-Mode",
       image: "/images/categories/rasasi-hawas-ice.jpg",
     },
     {
       title: "Designer",
-      tag: "Mainstream Perfection",
-      desc: "The world's most beloved compliment magnets. Masterfully crafted blends from Paris, Milan, and New York.",
-      brands: "Dior • Tom Ford • Chanel • YSL",
+      tag: "Mainstream Iconics",
       image: "/images/categories/bleu-de-chanel.jpg",
     },
     {
       title: "Niche",
-      tag: "Artisanal Connoisseur",
-      desc: "Rare raw ingredients, extraordinary concentration extraits, and artistic mastery for true perfume collectors.",
-      brands: "MFK • Parfums de Marly • Creed • Xerjoff",
+      tag: "Artisanal Luxury",
       image: "/images/categories/creed-aventus.jpg",
     },
   ];
@@ -42,11 +36,10 @@ const CategoryHero = ({ onSelectCategory }) => {
             <div className="tile-overlay">
               <span className="tile-tag">{cat.tag}</span>
               <h3 className="tile-title">{cat.title}</h3>
-              <p className="tile-desc">{cat.desc}</p>
-              <span style={{ fontSize: "11px", color: "var(--gold-accent)", marginBottom: "14px", fontWeight: "600" }}>
-                {cat.brands}
-              </span>
-              <button className="tile-btn">Shop {cat.title} Decants</button>
+              <div className="tile-action">
+                <span>Shop Decants</span>
+                <i className="fa-solid fa-arrow-right"></i>
+              </div>
             </div>
           </div>
         ))}
