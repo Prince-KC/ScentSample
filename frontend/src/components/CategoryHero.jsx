@@ -7,21 +7,21 @@ const CategoryHero = ({ onSelectCategory }) => {
       tag: "Opulent & Beast-Mode",
       desc: "Rich Arabic coffee, sweet dates, warm cinnamon, and intoxicating smoky woods. Exceptional longevity and sillage.",
       brands: "Lattafa • Afnan • Rasasi • Armaf",
-      image: "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&w=800&q=80",
+      image: "/images/categories/rasasi-hawas-ice.jpg",
     },
     {
       title: "Designer",
       tag: "Mainstream Perfection",
       desc: "The world's most beloved compliment magnets. Masterfully crafted blends from Paris, Milan, and New York.",
       brands: "Dior • Tom Ford • Chanel • YSL",
-      image: "https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=800&q=80",
+      image: "/images/categories/bleu-de-chanel.jpg",
     },
     {
       title: "Niche",
       tag: "Artisanal Connoisseur",
       desc: "Rare raw ingredients, extraordinary concentration extraits, and artistic mastery for true perfume collectors.",
       brands: "MFK • Parfums de Marly • Creed • Xerjoff",
-      image: "https://images.unsplash.com/photo-1615397349754-cfa2066a298e?auto=format&fit=crop&w=800&q=80",
+      image: "/images/categories/creed-aventus.jpg",
     },
   ];
 
