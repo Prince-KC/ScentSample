@@ -25,32 +25,8 @@ const Header = ({
       {/* Main Header */}
       <header>
         <div className="header-container">
-          {/* Nav Categories */}
+          {/* Main Navigation */}
           <nav className="main-nav">
-            <button
-              className={activeCategory === "All" ? "active-nav" : ""}
-              onClick={() => setActiveCategory("All")}
-            >
-              All Scents
-            </button>
-            <button
-              className={activeCategory === "Middle Eastern" ? "active-nav" : ""}
-              onClick={() => setActiveCategory("Middle Eastern")}
-            >
-              Middle Eastern
-            </button>
-            <button
-              className={activeCategory === "Designer" ? "active-nav" : ""}
-              onClick={() => setActiveCategory("Designer")}
-            >
-              Designer
-            </button>
-            <button
-              className={activeCategory === "Niche" ? "active-nav" : ""}
-              onClick={() => setActiveCategory("Niche")}
-            >
-              Niche
-            </button>
             <button onClick={openQuiz} style={{ color: "var(--gold-accent)" }}>
               <i className="fa-solid fa-wand-magic-sparkles" style={{ marginRight: "6px" }}></i>
               Scent Quiz
